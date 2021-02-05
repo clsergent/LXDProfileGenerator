@@ -65,35 +65,35 @@ def loadCloudInit(data, skip_errors=True):
     return data
 
 
-def updateCloudInit(data: dict, values: dict) -> (dict,dict):
+def updateCloudInit(data: dict, update: dict) -> (dict, dict):
     if 'config' in data.keys():
         for key, value in data['config'].items():
-            if key in CLOUD_INIT_KEYS and key in values:
+            if key in CLOUD_INIT_KEYS and key in update:
                 logging.info(f'updating cloud-init: {key}')
-                data['config'][key] = updateData(data['config'][key], values[key])
-                del values[key]
-    return data, values
+                data['config'][key] = updateData(data['config'][key], update[key])
+                del update[key]
+    return data, update
 
 
-def updateData(data, values):
+def updateData(data, update):
     if data is None:
-        return values
+        return update
 
-    elif type(data) is not type(values):
+    elif type(data) is not type(update):
         return data
 
     if type(data) is dict:
         for key, value in data.items():
-            if key in values:
-                data[key] = updateData(data[key], values[key])
-        for key in values:
+            if key in update:
+                data[key] = updateData(data[key], update[key])
+        for key in update:
             if key not in data:
-                data[key] = values[key]
+                data[key] = update[key]
 
     elif type(data) is list:
-        data += values
+        data += update
     else:
-        return values
+        return update
     return data
 
 
@@ -139,10 +139,10 @@ def dumpData(data, destination='', skip_errors=False, data_name='data') -> None:
 
 
 def getArgs():
-    parser = argparse.ArgumentParser(description='Script to generate LXD profiles')
-    parser.add_argument('template', type=str, help='profile used for generation')
-    parser.add_argument('-v', '--values', type=str, default='{}', help='values applied to the template')
-    parser.add_argument('-p', '--profile', type=str, default='', help='profile generated')
+    parser = argparse.ArgumentParser(description='Script to generate LXD profiles from templates')
+    parser.add_argument('template', type=str, help='YAML template used to generate the profile')
+    parser.add_argument('-u', '--update', type=str, default='{}', help='YAML values applied to the template')
+    parser.add_argument('-p', '--profile', type=str, default='', help='YAML profile generated')
     parser.add_argument('-c', '--cloud-init', action='store_true', default=False, help='parse cloud-init data')
     parser.add_argument('-V', '--verbose', action='store_true', default=False, help='make script verbose')
     parser.add_argument('-s', '--skip-errors', action='store_true', default=False, help='skip errors')
@@ -164,17 +164,17 @@ def run(args):
     if args.cloud_init is True:
         template = loadCloudInit(template, skip_errors=args.skip_errors)
 
-    values = loadData(args.values, skip_errors=args.skip_errors, data_name='values')
-    if type(values) is not dict:
+    update = loadData(args.update, skip_errors=args.skip_errors, data_name='update')
+    if type(update) is not dict:
         logging.warning('values is not a valid dictionary, skipping')
-        values = {}
+        update = {}
 
     # print(f'template {template}')
     # print(f'values {values}')
 
     logging.info('updating template...')
-    template, values = updateCloudInit(template, values)
-    template = updateData(template, values)
+    template, update = updateCloudInit(template, update)
+    template = updateData(template, update)
     logging.info('template updated')
 
     if args.cloud_init is True:
